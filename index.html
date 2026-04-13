@@ -10,16 +10,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0f1e;
-    --surface: #111827;
-    --surface2: #1c2537;
-    --border: #2a3855;
-    --accent: #22d3a5;
-    --accent2: #f59e0b;
-    --red: #f43f5e;
-    --text: #e2e8f0;
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --surface2: #f1f5f9;
+    --border: #e2e8f0;
+    --accent: #0ea87a;
+    --accent2: #d97706;
+    --red: #e11d48;
+    --text: #1e293b;
     --muted: #64748b;
-    --card-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --card-shadow: 0 4px 24px rgba(0,0,0,0.08);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -38,7 +38,7 @@
     gap: 16px;
     padding: 24px 40px;
     border-bottom: 1px solid var(--border);
-    background: linear-gradient(135deg, #0d1424 0%, #111827 100%);
+    background: linear-gradient(135deg, #e8f0fe 0%, #f8fafc 100%);
   }
   header .logo {
     font-family: 'Bebas Neue', sans-serif;
@@ -94,12 +94,12 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse at center, rgba(34,211,165,0.04) 0%, transparent 70%);
+    background: radial-gradient(ellipse at center, rgba(14,168,122,0.06) 0%, transparent 70%);
     pointer-events: none;
   }
   .drop-zone:hover, .drop-zone.drag-over {
     border-color: var(--accent);
-    background: rgba(34,211,165,0.05);
+    background: rgba(14,168,122,0.06);
     transform: translateY(-2px);
   }
   .drop-zone.loaded {
@@ -142,7 +142,7 @@
     transition: all .3s;
   }
   .drop-zone.loaded .drop-badge {
-    background: rgba(34,211,165,0.2);
+    background: rgba(14,168,122,0.15);
     color: var(--accent);
   }
 
@@ -156,7 +156,7 @@
     background: linear-gradient(135deg, var(--accent), #16a085);
     border: none;
     border-radius: 50px;
-    color: #0a0f1e;
+    color: #ffffff;
     font-family: 'Noto Sans KR', sans-serif;
     font-size: 15px;
     font-weight: 900;
@@ -318,7 +318,7 @@
     letter-spacing: 1.5px;
     text-transform: uppercase;
     color: var(--muted);
-    background: rgba(0,0,0,0.2);
+    background: rgba(0,0,0,0.03);
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
     cursor: pointer;
@@ -329,11 +329,11 @@
   th.sorted { color: var(--accent); }
   td {
     padding: 11px 16px;
-    border-bottom: 1px solid rgba(42,56,85,0.5);
+    border-bottom: 1px solid rgba(226,232,240,0.9);
     vertical-align: middle;
   }
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: rgba(34,211,165,0.03); }
+  tr:hover td { background: rgba(14,168,122,0.04); }
   .num { font-family: 'Space Mono', monospace; font-size: 12px; text-align: right; }
   .margin-pos { color: var(--accent); }
   .margin-neg { color: var(--red); }
@@ -345,10 +345,10 @@
     font-weight: 700;
     letter-spacing: 0.5px;
   }
-  .match-high { background: rgba(34,211,165,0.15); color: var(--accent); }
-  .match-mid { background: rgba(245,158,11,0.15); color: var(--accent2); }
-  .match-low { background: rgba(244,63,94,0.15); color: var(--red); }
-  .unmatched { background: rgba(100,116,139,0.15); color: var(--muted); }
+  .match-high { background: rgba(14,168,122,0.12); color: var(--accent); }
+  .match-mid { background: rgba(217,119,6,0.12); color: var(--accent2); }
+  .match-low { background: rgba(225,29,72,0.12); color: var(--red); }
+  .unmatched { background: rgba(100,116,139,0.12); color: var(--muted); }
 
   /* ── Monthly Table ── */
   .month-grid {
@@ -387,7 +387,7 @@
     letter-spacing: 0.5px;
   }
   .tab-btn:hover { border-color: var(--accent); color: var(--text); }
-  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #0a0f1e; }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #ffffff; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
@@ -399,7 +399,7 @@
     gap: 8px;
     align-items: center;
     padding: 10px 16px;
-    border-bottom: 1px solid rgba(42,56,85,0.5);
+    border-bottom: 1px solid rgba(226,232,240,0.9);
     font-size: 12px;
   }
   .fuzzy-item:last-child { border-bottom: none; }
@@ -410,7 +410,7 @@
   .margin-bar-wrap { display: flex; align-items: center; gap: 8px; }
   .margin-bar {
     height: 4px; border-radius: 2px; flex: 1;
-    background: rgba(34,211,165,0.15);
+    background: rgba(14,168,122,0.12);
     position: relative; overflow: hidden;
   }
   .margin-bar-fill {
@@ -435,7 +435,7 @@
   .fade-up-d2 { animation-delay: .1s; }
   .fade-up-d3 { animation-delay: .15s; }
 
-  .warning-row td { background: rgba(244,63,94,0.05); }
+  .warning-row td { background: rgba(225,29,72,0.04); }
 
   .empty-state {
     text-align: center; padding: 60px 20px;
@@ -890,10 +890,10 @@ function renderCharts() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Noto Sans KR', size: 11 } } } },
+      plugins: { legend: { labels: { color: '#475569', font: { family: 'Noto Sans KR', size: 11 } } } },
       scales: {
-        x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(42,56,85,0.5)' } },
-        y: { ticks: { color: '#64748b', callback: v => fmt(v) }, grid: { color: 'rgba(42,56,85,0.5)' } }
+        x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(226,232,240,0.9)' } },
+        y: { ticks: { color: '#64748b', callback: v => fmt(v) }, grid: { color: 'rgba(226,232,240,0.9)' } }
       }
     }
   });
@@ -915,12 +915,12 @@ function renderCharts() {
     type: 'doughnut',
     data: {
       labels: cats.map(c=>c[0]),
-      datasets: [{ data: cats.map(c=>c[1]), backgroundColor: colors, borderColor: '#111827', borderWidth: 2 }]
+      datasets: [{ data: cats.map(c=>c[1]), backgroundColor: colors, borderColor: '#ffffff', borderWidth: 2 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Noto Sans KR', size: 11 }, padding: 10 } },
+        legend: { position: 'right', labels: { color: '#475569', font: { family: 'Noto Sans KR', size: 11 }, padding: 10 } },
         tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}` } }
       }
     }
