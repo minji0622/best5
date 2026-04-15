@@ -180,7 +180,7 @@
   /* ── KPI Cards ── */
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 16px;
     margin-bottom: 28px;
   }
@@ -500,6 +500,11 @@
         <div class="kpi-sub" id="kpiOrders">주문 건</div>
       </div>
       <div class="kpi-card red">
+        <div class="kpi-label">카드수수료 (3.3%)</div>
+        <div class="kpi-value" id="kpiCardFee">-</div>
+        <div class="kpi-sub">매출 × 3.3%</div>
+      </div>
+      <div class="kpi-card red">
         <div class="kpi-label">총 원가</div>
         <div class="kpi-value" id="kpiCost">-</div>
         <div class="kpi-sub" id="kpiMatched">매칭된 상품</div>
@@ -659,7 +664,7 @@ function handleFile(num, file) {
       document.getElementById('badge2').textContent = `✓ ${file.name} (${data.length}건)`;
     }
 
-    if (salesData && costData) {
+    if (salesData) {
       document.getElementById('analyzeBtn').classList.add('ready');
     }
   };
@@ -728,11 +733,10 @@ function getColValue(row, candidates) {
 
 // ── Main Analysis ──
 function analyze() {
-  if (!salesData || !costData) return;
+  if (!salesData) return;
 
   // Detect columns
   const sampleS = salesData[0];
-  const sampleC = costData[0];
 
   const nameColS = detectCol(sampleS, ['상품명','품명','제품명','상품']);
   const priceColS = detectCol(sampleS, ['결제금액','금액','판매금액','실결제금액','결제가','단가','가격']);
@@ -741,16 +745,19 @@ function analyze() {
   const buyerColS = detectCol(sampleS, ['주문자명','주문자','구매자','고객명','이름']);
   const qtyColS = detectCol(sampleS, ['수량','qty','quantity']);
 
-  const nameColC = detectCol(sampleC, ['상품명','품명','제품명','상품']);
-  const costColC = detectCol(sampleC, ['원청가','원가','매입가','cost','단가','가격']);
-
-  // Build cost map
-  const costList = costData
-    .filter(r => r[nameColC] && r[costColC])
-    .map(r => ({
-      '상품명': String(r[nameColC]).trim(),
-      '원청가': parseFloat(r[costColC]) || 0
-    }));
+  // Build cost map (only if costData available)
+  let costList = [];
+  if (costData) {
+    const sampleC = costData[0];
+    const nameColC = detectCol(sampleC, ['상품명','품명','제품명','상품']);
+    const costColC = detectCol(sampleC, ['원청가','원가','매입가','cost','단가','가격']);
+    costList = costData
+      .filter(r => r[nameColC] && r[costColC])
+      .map(r => ({
+        '상품명': String(r[nameColC]).trim(),
+        '원청가': parseFloat(r[costColC]) || 0
+      }));
+  }
 
   // Process orders
   const orders = [];
@@ -770,18 +777,23 @@ function analyze() {
       if (!isNaN(d)) date = d;
     }
 
-    // Fuzzy match
-    let matched = matchMap[name];
-    if (!matched) {
-      const { item, score } = bestMatch(name, costList);
-      matched = { item, score };
-      matchMap[name] = matched;
+    // Fuzzy match (only if costData available)
+    let matched = null;
+    if (costList.length > 0) {
+      matched = matchMap[name];
+      if (!matched) {
+        const { item, score } = bestMatch(name, costList);
+        matched = { item, score };
+        matchMap[name] = matched;
+      }
     }
 
-    const unitCost = matched.item && matched.score > 0.2 ? matched.item['원청가'] : 0;
+    const unitCost = matched && matched.item && matched.score > 0.2 ? matched.item['원청가'] : 0;
     const totalCost = unitCost * qty;
-    const margin = price - totalCost;
+    const cardFee = price * 0.033;
+    const margin = price - cardFee - totalCost;
 
+    const cardFeeAmt = price * 0.033;
     orders.push({
       name,
       price,
@@ -790,10 +802,11 @@ function analyze() {
       month: date ? `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}` : '알 수 없음',
       order: String(row[orderColS] || ''),
       buyer: String(row[buyerColS] || ''),
-      matchedName: matched.item ? matched.item['상품명'] : null,
-      matchScore: matched.score,
+      matchedName: matched && matched.item ? matched.item['상품명'] : null,
+      matchScore: matched ? matched.score : 0,
       unitCost,
       totalCost,
+      cardFee: cardFeeAmt,
       margin,
       marginRate: price > 0 ? (margin / price) * 100 : 0
     });
@@ -809,14 +822,16 @@ function renderDashboard() {
 
   const totalRevenue = orders.reduce((s,o) => s + o.price, 0);
   const totalCost = orders.reduce((s,o) => s + o.totalCost, 0);
-  const totalMargin = totalRevenue - totalCost;
+  const totalCardFee = orders.reduce((s,o) => s + o.cardFee, 0);
+  const totalMargin = totalRevenue - totalCardFee - totalCost;
   const avgRate = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
   const matched = orders.filter(o => o.matchScore > 0.2).length;
 
   document.getElementById('kpiRevenue').textContent = fmt(totalRevenue);
   document.getElementById('kpiOrders').textContent = `총 ${orders.length}건 주문`;
+  document.getElementById('kpiCardFee').textContent = fmt(totalCardFee);
   document.getElementById('kpiCost').textContent = fmt(totalCost);
-  document.getElementById('kpiMatched').textContent = `${matched}/${orders.length}건 원가 매칭`;
+  document.getElementById('kpiMatched').textContent = costData ? `${matched}/${orders.length}건 원가 매칭` : '원가 파일 미업로드';
   document.getElementById('kpiMargin').textContent = fmt(totalMargin);
   document.getElementById('kpiMarginSub').textContent = totalMargin >= 0 ? '흑자' : '적자';
   document.getElementById('kpiRate').textContent = avgRate.toFixed(1) + '%';
@@ -844,20 +859,22 @@ function renderMonthlyCards() {
   const { orders } = analysisResult;
   const byMonth = {};
   for (const o of orders) {
-    if (!byMonth[o.month]) byMonth[o.month] = { revenue:0, cost:0, count:0 };
+    if (!byMonth[o.month]) byMonth[o.month] = { revenue:0, cost:0, cardFee:0, count:0 };
     byMonth[o.month].revenue += o.price;
     byMonth[o.month].cost += o.totalCost;
+    byMonth[o.month].cardFee += o.cardFee;
     byMonth[o.month].count++;
   }
   const months = Object.keys(byMonth).sort();
   const grid = document.getElementById('monthGrid');
   grid.innerHTML = months.map(m => {
     const d = byMonth[m];
-    const margin = d.revenue - d.cost;
+    const margin = d.revenue - d.cardFee - d.cost;
     const rate = d.revenue > 0 ? (margin / d.revenue * 100).toFixed(1) : '0.0';
     return `<div class="month-card">
       <div class="month-label">${m} (${d.count}건)</div>
       <div class="month-revenue">매출 ${fmt(d.revenue)}</div>
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--red);margin-bottom:2px">수수료 -${fmt(d.cardFee)}</div>
       <div class="month-cost">원가 ${fmt(d.cost)}</div>
       <div class="month-margin" style="color:${margin>=0?'var(--accent)':'var(--red)'}">${fmt(margin)}</div>
       <div class="month-rate">마진율 ${rate}%</div>
@@ -870,9 +887,10 @@ function renderCharts() {
   const { orders } = analysisResult;
   const byMonth = {};
   for (const o of orders) {
-    if (!byMonth[o.month]) byMonth[o.month] = { revenue:0, cost:0 };
+    if (!byMonth[o.month]) byMonth[o.month] = { revenue:0, cost:0, cardFee:0 };
     byMonth[o.month].revenue += o.price;
     byMonth[o.month].cost += o.totalCost;
+    byMonth[o.month].cardFee += o.cardFee;
   }
   const months = Object.keys(byMonth).sort();
 
@@ -884,8 +902,8 @@ function renderCharts() {
       labels: months,
       datasets: [
         { label: '매출', data: months.map(m => byMonth[m].revenue), backgroundColor: 'rgba(96,165,250,0.7)', borderRadius: 4 },
-        { label: '원가', data: months.map(m => byMonth[m].cost), backgroundColor: 'rgba(244,63,94,0.6)', borderRadius: 4 },
-        { label: '마진', data: months.map(m => byMonth[m].revenue - byMonth[m].cost), backgroundColor: 'rgba(34,211,165,0.8)', borderRadius: 4, type: 'line', tension: 0.4, borderColor: 'rgba(34,211,165,1)', pointBackgroundColor: 'rgba(34,211,165,1)', fill: false, yAxisID: 'y' }
+        { label: '원가+수수료', data: months.map(m => byMonth[m].cost + byMonth[m].cardFee), backgroundColor: 'rgba(244,63,94,0.6)', borderRadius: 4 },
+        { label: '마진', data: months.map(m => byMonth[m].revenue - byMonth[m].cost - byMonth[m].cardFee), backgroundColor: 'rgba(34,211,165,0.8)', borderRadius: 4, type: 'line', tension: 0.4, borderColor: 'rgba(34,211,165,1)', pointBackgroundColor: 'rgba(34,211,165,1)', fill: false, yAxisID: 'y' }
       ]
     },
     options: {
