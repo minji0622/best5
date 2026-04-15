@@ -180,7 +180,7 @@
   /* ── KPI Cards ── */
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 16px;
     margin-bottom: 28px;
   }
@@ -472,7 +472,7 @@
       <input type="file" id="file1" accept=".xlsx,.xls" onchange="loadFile(1,this)">
       <span class="drop-icon">📋</span>
       <div class="drop-title">① 실결제 파일</div>
-      <div class="drop-desc">주문번호 · 상품명 · 결제금액이 담긴<br>실제 결제 엑셀 파일을 업로드하세요</div>
+      <div class="drop-desc">날짜 · 상품명 · 결제금액 · 광고비 컬럼이 담긴<br>실제 결제 엑셀 파일을 업로드하세요</div>
       <span class="drop-badge" id="badge1">클릭 또는 드래그&드롭</span>
     </div>
     <div class="drop-zone" id="drop2" onclick="document.getElementById('file2').click()">
@@ -503,6 +503,11 @@
         <div class="kpi-label">카드수수료 (3.3%)</div>
         <div class="kpi-value" id="kpiCardFee">-</div>
         <div class="kpi-sub">매출 × 3.3%</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-label">총 광고비</div>
+        <div class="kpi-value" id="kpiAdCost">-</div>
+        <div class="kpi-sub">광고 지출 합계</div>
       </div>
       <div class="kpi-card red">
         <div class="kpi-label">총 원가</div>
@@ -568,6 +573,7 @@
                 <th>매칭 원가 상품</th>
                 <th style="text-align:right">수량</th>
                 <th style="text-align:right">총 매출</th>
+                <th style="text-align:right">광고비</th>
                 <th style="text-align:right">단위 원가</th>
                 <th style="text-align:right">총 원가</th>
                 <th style="text-align:right">마진</th>
@@ -601,6 +607,7 @@
                 <th>상품명</th>
                 <th style="text-align:right">수량</th>
                 <th style="text-align:right">결제금액</th>
+                <th style="text-align:right">광고비</th>
                 <th style="text-align:right">원가</th>
                 <th style="text-align:right">마진</th>
                 <th style="text-align:right">마진율</th>
@@ -738,12 +745,13 @@ function analyze() {
   // Detect columns
   const sampleS = salesData[0];
 
-  const nameColS = detectCol(sampleS, ['상품명','품명','제품명','상품']);
+  const nameColS  = detectCol(sampleS, ['상품명','품명','제품명','상품']);
   const priceColS = detectCol(sampleS, ['결제금액','금액','판매금액','실결제금액','결제가','단가','가격']);
-  const dateColS = detectCol(sampleS, ['주문일시','주문일','날짜','date','일시','주문날짜']);
+  const dateColS  = detectCol(sampleS, ['주문일시','주문일','날짜','date','일시','주문날짜']);
   const orderColS = detectCol(sampleS, ['주문번호','번호','order']);
   const buyerColS = detectCol(sampleS, ['주문자명','주문자','구매자','고객명','이름']);
-  const qtyColS = detectCol(sampleS, ['수량','qty','quantity']);
+  const qtyColS   = detectCol(sampleS, ['수량','qty','quantity']);
+  const adColS    = detectCol(sampleS, ['광고비','광고','ad','ads','advertising','광고금액']);
 
   // Build cost map (only if costData available)
   let costList = [];
@@ -788,12 +796,12 @@ function analyze() {
       }
     }
 
-    const unitCost = matched && matched.item && matched.score > 0.2 ? matched.item['원청가'] : 0;
+    const unitCost  = matched && matched.item && matched.score > 0.2 ? matched.item['원청가'] : 0;
     const totalCost = unitCost * qty;
-    const cardFee = price * 0.033;
-    const margin = price - cardFee - totalCost;
+    const cardFee   = price * 0.033;
+    const adCost    = parseFloat(row[adColS]) || 0;
+    const margin    = price - cardFee - adCost - totalCost;
 
-    const cardFeeAmt = price * 0.033;
     orders.push({
       name,
       price,
@@ -806,7 +814,8 @@ function analyze() {
       matchScore: matched ? matched.score : 0,
       unitCost,
       totalCost,
-      cardFee: cardFeeAmt,
+      cardFee,
+      adCost,
       margin,
       marginRate: price > 0 ? (margin / price) * 100 : 0
     });
@@ -821,17 +830,19 @@ function renderDashboard() {
   const { orders } = analysisResult;
 
   const totalRevenue = orders.reduce((s,o) => s + o.price, 0);
-  const totalCost = orders.reduce((s,o) => s + o.totalCost, 0);
+  const totalCost    = orders.reduce((s,o) => s + o.totalCost, 0);
   const totalCardFee = orders.reduce((s,o) => s + o.cardFee, 0);
-  const totalMargin = totalRevenue - totalCardFee - totalCost;
+  const totalAdCost  = orders.reduce((s,o) => s + o.adCost, 0);
+  const totalMargin  = totalRevenue - totalCardFee - totalAdCost - totalCost;
   const avgRate = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
   const matched = orders.filter(o => o.matchScore > 0.2).length;
 
-  document.getElementById('kpiRevenue').textContent = fmt(totalRevenue);
-  document.getElementById('kpiOrders').textContent = `총 ${orders.length}건 주문`;
-  document.getElementById('kpiCardFee').textContent = fmt(totalCardFee);
-  document.getElementById('kpiCost').textContent = fmt(totalCost);
-  document.getElementById('kpiMatched').textContent = costData ? `${matched}/${orders.length}건 원가 매칭` : '원가 파일 미업로드';
+  document.getElementById('kpiRevenue').textContent  = fmt(totalRevenue);
+  document.getElementById('kpiOrders').textContent   = `총 ${orders.length}건 주문`;
+  document.getElementById('kpiCardFee').textContent  = fmt(totalCardFee);
+  document.getElementById('kpiAdCost').textContent   = fmt(totalAdCost);
+  document.getElementById('kpiCost').textContent     = fmt(totalCost);
+  document.getElementById('kpiMatched').textContent  = costData ? `${matched}/${orders.length}건 원가 매칭` : '원가 파일 미업로드';
   document.getElementById('kpiMargin').textContent = fmt(totalMargin);
   document.getElementById('kpiMarginSub').textContent = totalMargin >= 0 ? '흑자' : '적자';
   document.getElementById('kpiRate').textContent = avgRate.toFixed(1) + '%';
@@ -859,22 +870,24 @@ function renderMonthlyCards() {
   const { orders } = analysisResult;
   const byMonth = {};
   for (const o of orders) {
-    if (!byMonth[o.month]) byMonth[o.month] = { revenue:0, cost:0, cardFee:0, count:0 };
+    if (!byMonth[o.month]) byMonth[o.month] = { revenue:0, cost:0, cardFee:0, adCost:0, count:0 };
     byMonth[o.month].revenue += o.price;
-    byMonth[o.month].cost += o.totalCost;
+    byMonth[o.month].cost    += o.totalCost;
     byMonth[o.month].cardFee += o.cardFee;
+    byMonth[o.month].adCost  += o.adCost;
     byMonth[o.month].count++;
   }
   const months = Object.keys(byMonth).sort();
   const grid = document.getElementById('monthGrid');
   grid.innerHTML = months.map(m => {
     const d = byMonth[m];
-    const margin = d.revenue - d.cardFee - d.cost;
+    const margin = d.revenue - d.cardFee - d.adCost - d.cost;
     const rate = d.revenue > 0 ? (margin / d.revenue * 100).toFixed(1) : '0.0';
     return `<div class="month-card">
       <div class="month-label">${m} (${d.count}건)</div>
       <div class="month-revenue">매출 ${fmt(d.revenue)}</div>
       <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--red);margin-bottom:2px">수수료 -${fmt(d.cardFee)}</div>
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--accent2);margin-bottom:2px">광고비 -${fmt(d.adCost)}</div>
       <div class="month-cost">원가 ${fmt(d.cost)}</div>
       <div class="month-margin" style="color:${margin>=0?'var(--accent)':'var(--red)'}">${fmt(margin)}</div>
       <div class="month-rate">마진율 ${rate}%</div>
@@ -887,10 +900,11 @@ function renderCharts() {
   const { orders } = analysisResult;
   const byMonth = {};
   for (const o of orders) {
-    if (!byMonth[o.month]) byMonth[o.month] = { revenue:0, cost:0, cardFee:0 };
+    if (!byMonth[o.month]) byMonth[o.month] = { revenue:0, cost:0, cardFee:0, adCost:0 };
     byMonth[o.month].revenue += o.price;
-    byMonth[o.month].cost += o.totalCost;
+    byMonth[o.month].cost    += o.totalCost;
     byMonth[o.month].cardFee += o.cardFee;
+    byMonth[o.month].adCost  += o.adCost;
   }
   const months = Object.keys(byMonth).sort();
 
@@ -902,8 +916,8 @@ function renderCharts() {
       labels: months,
       datasets: [
         { label: '매출', data: months.map(m => byMonth[m].revenue), backgroundColor: 'rgba(96,165,250,0.7)', borderRadius: 4 },
-        { label: '원가+수수료', data: months.map(m => byMonth[m].cost + byMonth[m].cardFee), backgroundColor: 'rgba(244,63,94,0.6)', borderRadius: 4 },
-        { label: '마진', data: months.map(m => byMonth[m].revenue - byMonth[m].cost - byMonth[m].cardFee), backgroundColor: 'rgba(34,211,165,0.8)', borderRadius: 4, type: 'line', tension: 0.4, borderColor: 'rgba(34,211,165,1)', pointBackgroundColor: 'rgba(34,211,165,1)', fill: false, yAxisID: 'y' }
+        { label: '원가+수수료+광고비', data: months.map(m => byMonth[m].cost + byMonth[m].cardFee + byMonth[m].adCost), backgroundColor: 'rgba(244,63,94,0.6)', borderRadius: 4 },
+        { label: '마진', data: months.map(m => byMonth[m].revenue - byMonth[m].cost - byMonth[m].cardFee - byMonth[m].adCost), backgroundColor: 'rgba(34,211,165,0.8)', borderRadius: 4, type: 'line', tension: 0.4, borderColor: 'rgba(34,211,165,1)', pointBackgroundColor: 'rgba(34,211,165,1)', fill: false, yAxisID: 'y' }
       ]
     },
     options: {
@@ -953,11 +967,12 @@ function renderProductTable() {
 
   const byProd = {};
   for (const o of orders) {
-    if (!byProd[o.name]) byProd[o.name] = { name:o.name, matchedName:o.matchedName, matchScore:o.matchScore, qty:0, revenue:0, unitCost:o.unitCost, totalCost:0, margin:0 };
-    byProd[o.name].qty += o.qty;
-    byProd[o.name].revenue += o.price;
+    if (!byProd[o.name]) byProd[o.name] = { name:o.name, matchedName:o.matchedName, matchScore:o.matchScore, qty:0, revenue:0, unitCost:o.unitCost, totalCost:0, adCost:0, margin:0 };
+    byProd[o.name].qty       += o.qty;
+    byProd[o.name].revenue   += o.price;
     byProd[o.name].totalCost += o.totalCost;
-    byProd[o.name].margin += o.margin;
+    byProd[o.name].adCost    += o.adCost;
+    byProd[o.name].margin    += o.margin;
   }
 
   let rows = Object.values(byProd).filter(r => !search || r.name.toLowerCase().includes(search));
@@ -976,6 +991,7 @@ function renderProductTable() {
       <td style="color:var(--muted);font-size:11px">${r.matchedName || '-'}</td>
       <td class="num">${r.qty}</td>
       <td class="num">${fmt(r.revenue)}</td>
+      <td class="num" style="color:var(--accent2)">${r.adCost > 0 ? fmt(r.adCost) : '-'}</td>
       <td class="num">${r.unitCost > 0 ? fmt(r.unitCost) : '-'}</td>
       <td class="num">${r.totalCost > 0 ? fmt(r.totalCost) : '-'}</td>
       <td class="num ${r.margin >= 0 ? 'margin-pos':'margin-neg'}">
@@ -987,7 +1003,7 @@ function renderProductTable() {
       <td class="num ${r.margin >= 0 ? 'margin-pos':'margin-neg'}">${rate.toFixed(1)}%</td>
       <td style="text-align:center"><span class="match-badge ${scoreLabel[0]}">${scoreLabel[1]}</span></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="9" class="empty-state">검색 결과 없음</td></tr>';
+  }).join('') || '<tr><td colspan="10" class="empty-state">검색 결과 없음</td></tr>';
 }
 
 // ── Detail Table ──
@@ -1012,11 +1028,12 @@ function renderDetailTable() {
       <td>${o.name}</td>
       <td class="num">${o.qty}</td>
       <td class="num" style="color:#60a5fa">${fmt(o.price)}</td>
+      <td class="num" style="color:var(--accent2)">${o.adCost > 0 ? fmt(o.adCost) : '-'}</td>
       <td class="num">${o.unitCost > 0 ? fmt(o.unitCost) : '-'}</td>
       <td class="num ${o.margin >= 0 ? 'margin-pos':'margin-neg'}">${fmt(o.margin)}</td>
       <td class="num ${o.margin >= 0 ? 'margin-pos':'margin-neg'}">${rate}%</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="9" class="empty-state">데이터 없음</td></tr>';
+  }).join('') || '<tr><td colspan="10" class="empty-state">데이터 없음</td></tr>';
 }
 
 // ── Fuzzy List ──
